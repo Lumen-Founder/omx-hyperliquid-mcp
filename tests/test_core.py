@@ -117,7 +117,7 @@ def test_audit_refuses_secrets(tmp_path):
 
 
 @pytest.mark.parametrize("att,obs,ok", [
-    (Attestation("KR", accepts_terms=True), "KR", True),
+    (Attestation("DE", accepts_terms=True), "DE", True),
     (Attestation("US", accepts_terms=True), "", False),
     (Attestation("CA", "CA-ON", accepts_terms=True), "CA", False),
     (Attestation("CA", "CA-BC", accepts_terms=True), "CA", True),

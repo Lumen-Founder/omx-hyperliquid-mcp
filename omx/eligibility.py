@@ -12,6 +12,10 @@ is required, otherwise the attestation is blocked.
 
 Where readings could differ we take the narrower, safer one: the sanctioned list below is
 broader than the comprehensive-embargo minimum. The operator may only ADD entries.
+
+OMX also does not serve persons residing or located in the Republic of Korea (KR). This is
+an OMX restriction on top of the Hyperliquid terms (a local-regulation precaution for
+offshore perpetual futures), not a reading of those terms.
 Circumvention (VPN/proxy, false residency statements) is a breach; the software never
 offers ways around a block.
 
@@ -34,7 +38,10 @@ from .audit import file_lock
 TERMS_SOURCE = "https://app.hyperliquid.xyz/terms (Last updated on June 15, 2026)"
 
 # ISO 3166-1 alpha-2, plus region codes for sub-national blocks.
-RESTRICTED_COUNTRIES = frozenset({"US"})
+RESTRICTED_COUNTRIES = frozenset({
+    "US",                              # Hyperliquid Terms of Use
+    "KR",                              # OMX's own restriction (see module doc)
+})
 RESTRICTED_REGIONS = frozenset({"CA-ON"})
 SANCTIONED_TERRITORIES = frozenset({
     "CU", "IR", "KP", "SY",            # comprehensive embargoes

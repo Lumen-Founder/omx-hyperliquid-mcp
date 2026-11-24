@@ -26,7 +26,8 @@ ELIGIBILITY_FILE = LEGACY_FILE          # pre-R1 single record, read only; histo
 
 NOT_AVAILABLE = ("OMX is not available to persons or entities residing, located, incorporated or with a "
                  "registered office in the United States, Ontario (Canada) or sanctioned territories, nor to "
-                 "citizens of sanctioned territories (per the Hyperliquid Terms of Use). Using a VPN or proxy "
+                 "citizens of sanctioned territories (per the Hyperliquid Terms of Use). OMX is also not "
+                 "available to persons residing or located in the Republic of Korea. Using a VPN or proxy "
                  "or a false residency statement to get around this is a breach; OMX offers no way around a "
                  "block. OMX does not offer outcome markets.")
 
@@ -63,7 +64,7 @@ def ask_attestation(input_fn: InputFn, out: TextIO) -> Attestation:
     is_entity = _yes(input_fn, out, "Are you using OMX on behalf of a company or other entity?")
     inc = _ask(input_fn, out, "Entity country of incorporation / registered office (ISO code, e.g. DE): ", ISO2) \
         if is_entity else ""
-    country = _ask(input_fn, out, "Country where you RESIDE (live) (ISO code, e.g. KR): ", ISO2)
+    country = _ask(input_fn, out, "Country where you RESIDE (live) (ISO code, e.g. DE): ", ISO2)
     # sub-national blocks only exist for CA / UA, so the region is asked only there
     # (blank is accepted and then blocked by check() as REGION_REQUIRED, so the attempt is recorded)
     region = _ask(input_fn, out, "Province/region where you reside (e.g. CA-BC, UA-30): ", REGION,

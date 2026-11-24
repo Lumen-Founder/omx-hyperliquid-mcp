@@ -100,11 +100,14 @@ def _parser() -> argparse.ArgumentParser:
     k.add_argument("--key-path", help="PATH of the agent wallet key file (the key itself is never passed)")
     k.add_argument("--key-env", help="NAME of the env var holding the agent wallet key")
     b = p.add_mutually_exclusive_group()
-    b.add_argument("--builder-address", default=None, help="builder code address (default: the OMX default for "
-                                                            "the network, if any)")
-    b.add_argument("--no-builder", action="store_true", help="send no builder code (fee 0)")
+    b.add_argument("--with-builder", action="store_true",
+                   help="opt in to the OMX builder fee (mainnet only; default 1 bp, charged only after you "
+                        "approve it in your own wallet). Without this flag no builder code is sent.")
+    b.add_argument("--builder-address", default=None, help="use your own builder code address instead")
+    b.add_argument("--no-builder", action="store_true", help="send no builder code (fee 0); this is the default")
     p.add_argument("--fee-tenths-bps", type=int, default=None,
-                   help="builder fee in 0.1 bps (default 10 = 1 bps with the OMX default builder, else 0)")
+                   help="builder fee in 0.1 bps, with --with-builder (default 10 = 1 bp) or --builder-address "
+                        "(default 0)")
     p.add_argument("--enable-agent", action="store_true")
     p.add_argument("--force", action="store_true", help="overwrite an existing config")
 
@@ -328,15 +331,25 @@ def _approvals(cfg: OMXConfig, ns, input_fn, out: TextIO, clock, need_eligible) 
 
 
 def _init_builder(ns) -> tuple:
-    """(builder address or None, fee in 0.1 bps) for `omx init`."""
+    """(builder address or None, fee in 0.1 bps) for `omx init`.
+
+    The OMX builder fee is opt-in: without --with-builder (or --builder-address) no builder code is
+    configured, so orders carry no builder field and nothing waits for a builder-fee approval."""
     from . import config as config_mod
     if ns.no_builder:
         return None, 0
     if ns.builder_address:
         return ns.builder_address, 0 if ns.fee_tenths_bps is None else ns.fee_tenths_bps
+    if not getattr(ns, "with_builder", False):
+        if ns.fee_tenths_bps:
+            raise CLIError("--fee-tenths-bps needs --with-builder or --builder-address "
+                           "(without them no builder fee is set)")
+        return None, 0
     default = config_mod.DEFAULT_BUILDER.get(ns.network)
-    if default is None or default.lower() == ns.account.lower():     # the builder's own account pays no builder fee
-        return None, 0 if ns.fee_tenths_bps is None else ns.fee_tenths_bps
+    if default is None:
+        raise CLIError(f"there is no OMX builder on {ns.network}; drop --with-builder")
+    if default.lower() == ns.account.lower():     # the builder's own account pays no builder fee
+        return None, 0
     fee = config_mod.DEFAULT_BUILDER_FEE_TENTHS_BPS if ns.fee_tenths_bps is None else ns.fee_tenths_bps
     return default, fee
 

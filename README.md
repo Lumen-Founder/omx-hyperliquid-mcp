@@ -21,7 +21,7 @@ plumbing with guard rails.
 | Human approval | An agent intent above `approval_above_usd`, or beyond the agent's daily budget, waits for you: `omx approvals approve <id>`, then a confirm code typed in the daemon's terminal. Pending approvals expire. |
 | Stopping it | Any agent or human can trip the kill switch; it cancels resting OMX orders. Only a human can clear it (`omx unkill`). |
 | Audit | Every decision goes to a hash-chained log; `omx audit verify` detects tampering. |
-| Fees | Optional 1 bp builder fee, charged only after you approve it in your own wallet; `--no-builder` for none. See [docs/FEES.md](docs/FEES.md). |
+| Fees | Off by default. An opt-in 1 bp builder fee (`omx init --with-builder`, or choice 1 in `omx setup`), charged only after you approve it in your own wallet. See [docs/FEES.md](docs/FEES.md). |
 
 Path: the keyless demo, then paper trading on live Hyperliquid books (also
 keyless), then testnet, then mainnet with small size.
@@ -51,7 +51,7 @@ gemini mcp add omx uvx omx-hyperliquid             # Gemini CLI
   `{"mcpServers": {"omx": {"command": "uvx", "args": ["omx-hyperliquid"]}}}`.
   Claude Desktop keeps it in `claude_desktop_config.json` (Settings > Developer >
   Edit Config; Windows `%APPDATA%\Claude\`, macOS `~/Library/Application Support/Claude/`);
-  Cursor in `~/.cursor/mcp.json`. Pin a version with `"omx-hyperliquid@0.1.8"`.
+  Cursor in `~/.cursor/mcp.json`. Pin a version with `"omx-hyperliquid@0.1.9"`.
 - No `uv`? Windows: `powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"`;
   macOS / Linux: `curl -LsSf https://astral.sh/uv/install.sh | sh`; then open a new terminal. Or
   `pip install omx-hyperliquid` and use `omx-hyperliquid` as the command.
@@ -118,7 +118,7 @@ has copy-and-run examples for the OpenAI Agents SDK, LangChain, the Claude
 Agent SDK, PydanticAI and CrewAI, each checked against this server with the
 framework's own MCP client (demo mode by default).
 
-**Status (v0.1.8):** pre-1.0. The full path (agent intent -> policy -> signed
+**Status (v0.1.9):** pre-1.0. The full path (agent intent -> policy -> signed
 order with a builder code -> fill -> kill switch -> audit verify) has been run
 end to end on Hyperliquid testnet. The native TWAP route (v0.1.8, off by default) and execution
 receipts are tested against the local simulator and recorded exchange answers, not yet on testnet.
@@ -132,7 +132,8 @@ Start on testnet, then mainnet with small size. MIT licensed, no warranty.
 OMX is not available to persons or entities residing, located, incorporated or
 with a registered office in the United States, Ontario (Canada) or sanctioned
 territories, nor to citizens of sanctioned territories, per the Hyperliquid
-Terms of Use. Using a VPN or proxy, or a false residency statement, to get
+Terms of Use. OMX is also not available to persons residing or located in the
+Republic of Korea. Using a VPN or proxy, or a false residency statement, to get
 around this is a breach; OMX offers no way around a block. OMX does not offer
 outcome markets. `omx eligibility` asks these questions and refuses to trade
 when the answer is blocked; it stores only country/region codes and yes/no
@@ -261,10 +262,13 @@ or change limits. See `docs/SECURITY.md`, `docs/FEES.md`, `docs/AGENTS.md`.
 ## Builder fee
 
 OMX is open source (MIT) and costs nothing to install or run. The maintainers
-are paid through an optional Hyperliquid builder fee on mainnet fills. When `omx/config.py` names a default builder for the network
-(`DEFAULT_BUILDER`), `omx init` sets it at 1 bp (0.01 % of filled notional).
-`--no-builder` sends no builder code, `--fee-tenths-bps` sets a lower fee, and
-`--builder-address` uses your own. Nothing is charged until you approve the
+can be paid through an optional Hyperliquid builder fee on mainnet fills. It is
+off by default: `omx init` sends no builder code unless you pass
+`--with-builder`, which sets the OMX builder (`DEFAULT_BUILDER` in
+`omx/config.py`) at 1 bp (0.01 % of filled notional); `omx setup` asks you to
+choose explicitly. `--fee-tenths-bps` with `--with-builder` sets a lower fee,
+and `--builder-address` uses your own. Without a builder, orders carry no
+builder field and nothing waits for an approval. Nothing is charged until you approve the
 fee from your own wallet (`omx approve-builder`), and you can revoke it at any
 time. `omx fees` shows the exact rate and the exact max rate you would
 approve, before you approve anything. Details in `docs/FEES.md`.

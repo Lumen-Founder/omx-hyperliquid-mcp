@@ -18,7 +18,7 @@ DAY = 86400
 from answer_flow import flow
 
 
-def answers(res="KR", res_region="", here=None, here_region=None, cits=None, vpn="no", terms="yes"):
+def answers(res="DE", res_region="", here=None, here_region=None, cits=None, vpn="no", terms="yes"):
     """Order: entity?, residence country, residence region, current country, current region,
     citizenships, VPN?, terms? Current location defaults to the residence answers."""
     if here_region is None:
@@ -57,11 +57,11 @@ def test_canada_without_province_is_blocked(tmp_path):           # F9
     (dict(res="UA"), False, "REGION_REQUIRED:RESIDENCE:UA"),
     (dict(res="UA", res_region="UA-30"), True, None),
     (dict(res="UA", res_region="UA-43"), False, "RESTRICTED_REGION:UA-43"),
-    (dict(res="KR", here="CA", cits="KR"), False, "REGION_REQUIRED:LOCATION:CA"),
-    (dict(res="KR", here="CA", here_region="CA-ON", cits="KR"), False, "RESTRICTED_REGION:CA-ON"),
+    (dict(res="DE", here="CA", cits="DE"), False, "REGION_REQUIRED:LOCATION:CA"),
+    (dict(res="DE", here="CA", here_region="CA-ON", cits="DE"), False, "RESTRICTED_REGION:CA-ON"),
     (dict(res="CA", res_region="CA-BC", here="CA", here_region="CA-ON"), False, "RESTRICTED_REGION:CA-ON"),
-    (dict(res="KR", here="US", cits="KR"), False, "RESTRICTED_LOCATION:US"),
-    (dict(res="KR", here="JP", cits="KR"), True, None),
+    (dict(res="DE", here="US", cits="DE"), False, "RESTRICTED_LOCATION:US"),
+    (dict(res="DE", here="JP", cits="DE"), True, None),
 ])
 def test_region_and_current_location_rules(tmp_path, kw, ok, reason):
     got, reasons, _, _ = attempt(tmp_path, answers(**kw))
@@ -70,25 +70,45 @@ def test_region_and_current_location_rules(tmp_path, kw, ok, reason):
         assert reason in reasons
 
 
+@pytest.mark.parametrize("kw,ok,reason", [
+    (dict(res="KR"), False, "RESTRICTED_LOCATION:KR"),                    # resident in Korea
+    (dict(res="DE", here="KR", cits="DE"), False, "RESTRICTED_LOCATION:KR"),   # physically in Korea now
+    (dict(res="DE", cits="KR"), True, None),                              # Korean citizen living abroad
+])
+def test_korea_residence_or_location_is_blocked(tmp_path, kw, ok, reason):
+    got, reasons, _, _ = attempt(tmp_path, answers(**kw))
+    assert got is ok, reasons
+    if reason:
+        assert reason in reasons
+        assert eligibility_problem(tmp_path, T0) == "ELIGIBILITY_BLOCKED"
+
+
+def test_korea_block_is_in_the_shipped_lists_and_notice():
+    assert "KR" in el.RESTRICTED_COUNTRIES
+    assert not check(Attestation("KR", citizenships=("KR",), accepts_terms=True, current_country="KR"))[0]
+    assert not check(Attestation("DE", accepts_terms=True), observed_country="KR")[0]
+    assert "Republic of Korea" in NOT_AVAILABLE
+
+
 def test_residence_and_location_are_asked_separately(tmp_path):
     _, _, out, prompts = attempt(tmp_path, answers())
-    assert any("RESIDE" in p for p in prompts) and any("physically in KR right now" in p for p in prompts)
+    assert any("RESIDE" in p for p in prompts) and any("physically in DE right now" in p for p in prompts)
     assert not any("Province/region" in p for p in prompts)       # asked only for CA / UA
-    _, _, _, prompts = attempt(tmp_path / "jp", answers(here="JP", cits="KR"))
+    _, _, _, prompts = attempt(tmp_path / "jp", answers(here="JP", cits="DE"))
     assert any("PHYSICALLY LOCATED" in p for p in prompts)
     assert any("VPN or proxy" in p for p in prompts)
     assert NOT_AVAILABLE in out and "offers no way around" in out and "VPN or proxy" in out
 
 
 def test_observed_country_is_compared_with_current_location():
-    att = Attestation("KR", citizenships=("KR",), accepts_terms=True, current_country="JP")
+    att = Attestation("DE", citizenships=("DE",), accepts_terms=True, current_country="JP")
     assert check(att, observed_country="JP")[0]
-    ok, why = check(att, observed_country="KR")
+    ok, why = check(att, observed_country="DE")
     assert not ok and "LOCATION_MISMATCH" in why
 
 
 def test_check_and_attestation_backward_compatible():
-    assert check(Attestation("KR", accepts_terms=True), observed_country="KR") == (True, [])
+    assert check(Attestation("DE", accepts_terms=True), observed_country="DE") == (True, [])
     assert check(Attestation("CA", "CA-BC", accepts_terms=True), observed_country="CA")[0]
     assert not check(Attestation("CA", accepts_terms=True))[0]         # province now required
 
@@ -99,13 +119,13 @@ def test_blocked_attempt_is_kept_and_audited(tmp_path):          # F9b
     audit = AuditLog(tmp_path / "audit.jsonl")
     ok, _, _, _ = attempt(tmp_path, answers("US"), audit=audit)
     assert not ok and eligibility_problem(tmp_path, T0) == "ELIGIBILITY_BLOCKED"
-    ok, reasons, out, _ = attempt(tmp_path, answers("KR"), t=T0 + 60, audit=audit)
+    ok, reasons, out, _ = attempt(tmp_path, answers("DE"), t=T0 + 60, audit=audit)
     assert not ok and reasons[0] == "ELIGIBILITY_COOLDOWN"            # re-answer within 24 h does not count
     assert "was blocked" in out and "RESTRICTED_LOCATION:US" in out and "stays locked" in out
     with pytest.raises(EligibilityError) as e:
         require_valid(tmp_path, T0 + 2 * DAY)                          # never, not just until the cooldown ends
     assert e.value.reasons == ["ELIGIBILITY_COOLDOWN"]
-    ok, _, out, _ = attempt(tmp_path, answers("KR"), t=T0 + DAY, audit=audit)
+    ok, _, out, _ = attempt(tmp_path, answers("DE"), t=T0 + DAY, audit=audit)
     assert ok and "was blocked" in out
     hist = load_history(tmp_path)
     assert [h["eligible"] for h in hist] == [False, True, True] and [h["seq"] for h in hist] == [0, 1, 2]
@@ -121,9 +141,9 @@ def test_cooldown_boundary_and_constant(tmp_path, monkeypatch):
     assert el.BLOCK_COOLDOWN_S == 86400
     _, _, out, _ = attempt(tmp_path, answers("US"))
     assert "24 h cooldown" in out
-    attempt(tmp_path, answers("KR"), t=T0 + DAY - 1)
+    attempt(tmp_path, answers("DE"), t=T0 + DAY - 1)
     assert eligibility_problem(tmp_path, T0 + DAY) == "ELIGIBILITY_COOLDOWN"
-    attempt(tmp_path, answers("KR"), t=T0 + DAY)
+    attempt(tmp_path, answers("DE"), t=T0 + DAY)
     require_valid(tmp_path, T0 + DAY + 1)
     monkeypatch.setattr(el, "BLOCK_COOLDOWN_S", 2 * DAY)              # configurable
     assert eligibility_problem(tmp_path, T0 + DAY + 1) == "ELIGIBILITY_COOLDOWN"
@@ -131,23 +151,23 @@ def test_cooldown_boundary_and_constant(tmp_path, monkeypatch):
 
 def test_cooldown_counts_from_latest_block_even_if_clock_rolls_back(tmp_path):
     attempt(tmp_path, answers("US"), t=T0 + 5 * DAY)
-    attempt(tmp_path, answers("KR"), t=T0 + 2 * DAY)                  # dated before the block
+    attempt(tmp_path, answers("DE"), t=T0 + 2 * DAY)                  # dated before the block
     assert eligibility_problem(tmp_path, T0 + 10 * DAY) == "ELIGIBILITY_COOLDOWN"
 
 
 def test_cooldown_restarts_on_each_block(tmp_path):
     attempt(tmp_path, answers("US"))
-    attempt(tmp_path, answers("KR", vpn="yes"), t=T0 + DAY - 10)
-    attempt(tmp_path, answers("KR"), t=T0 + DAY + 10)
+    attempt(tmp_path, answers("DE", vpn="yes"), t=T0 + DAY - 10)
+    attempt(tmp_path, answers("DE"), t=T0 + DAY + 10)
     assert eligibility_problem(tmp_path, T0 + DAY + 20) == "ELIGIBILITY_COOLDOWN"
-    attempt(tmp_path, answers("KR"), t=T0 + 2 * DAY)
+    attempt(tmp_path, answers("DE"), t=T0 + 2 * DAY)
     assert eligibility_problem(tmp_path, T0 + 2 * DAY + 1) is None
 
 
 # ---------------------------------------------------------------- current location is required to store a pass
 
 def test_save_without_current_location_is_stored_blocked(tmp_path):
-    att = Attestation("KR", citizenships=("KR",), accepts_terms=True)
+    att = Attestation("DE", citizenships=("DE",), accepts_terms=True)
     assert check(att) == (True, [])                                   # check() unchanged for compatibility
     save_eligibility(tmp_path, att, True, [], clock=lambda: T0)
     hist = load_history(tmp_path)
@@ -155,15 +175,15 @@ def test_save_without_current_location_is_stored_blocked(tmp_path):
     with pytest.raises(EligibilityError) as e:
         require_valid(tmp_path, T0 + 1)
     assert e.value.reasons == ["ELIGIBILITY_BLOCKED", "CURRENT_LOCATION_REQUIRED"]
-    full = Attestation("KR", citizenships=("KR",), accepts_terms=True, current_country="KR")
+    full = Attestation("DE", citizenships=("DE",), accepts_terms=True, current_country="DE")
     save_eligibility(tmp_path, full, True, [], clock=lambda: T0 + DAY)
     require_valid(tmp_path, T0 + DAY + 1)
 
 
 def test_require_valid_refuses_schema2_pass_without_location(tmp_path):
     rec = {"schema": 2, "seq": 0, "ts_s": int(T0), "expires_s": int(T0) + DEFAULT_TTL_S, "eligible": True,
-           "reasons": [], "terms_source": el.TERMS_SOURCE, "residence_country": "KR", "residence_region": "",
-           "current_country": "", "current_region": "", "citizenships": ["KR"], "is_entity": False,
+           "reasons": [], "terms_source": el.TERMS_SOURCE, "residence_country": "DE", "residence_region": "",
+           "current_country": "", "current_region": "", "citizenships": ["DE"], "is_entity": False,
            "entity_incorporation": "", "uses_vpn_or_proxy": False, "accepts_terms": True}
     (tmp_path / el.HISTORY_FILE).write_text(json.dumps(rec) + "\n", encoding="utf-8")   # written by other code
     with pytest.raises(EligibilityError) as e:
@@ -172,8 +192,8 @@ def test_require_valid_refuses_schema2_pass_without_location(tmp_path):
 
 
 def test_blocked_newer_than_pass_refuses(tmp_path):
-    attempt(tmp_path, answers("KR"))
-    attempt(tmp_path, answers("KR", vpn="yes"), t=T0 + 10)
+    attempt(tmp_path, answers("DE"))
+    attempt(tmp_path, answers("DE", vpn="yes"), t=T0 + 10)
     with pytest.raises(EligibilityError) as e:
         require_valid(tmp_path, T0 + 20)
     assert e.value.reasons[0] == "ELIGIBILITY_BLOCKED" and "VPN_OR_PROXY_DECLARED" in e.value.reasons
@@ -189,7 +209,7 @@ def test_no_attestation_refuses(tmp_path):
 def test_history_file_is_append_only(tmp_path):
     attempt(tmp_path, answers("US"))
     first = (tmp_path / el.HISTORY_FILE).read_bytes()
-    attempt(tmp_path, answers("KR"), t=T0 + 1)
+    attempt(tmp_path, answers("DE"), t=T0 + 1)
     assert (tmp_path / el.HISTORY_FILE).read_bytes().startswith(first)
     assert not (tmp_path / el.LEGACY_FILE).exists()                    # the single overwritable file is gone
 
@@ -202,11 +222,11 @@ def test_save_cannot_store_a_pass_the_rules_block(tmp_path):
 
 
 def test_torn_history_line_is_never_a_pass(tmp_path):
-    attempt(tmp_path, answers("KR"))
+    attempt(tmp_path, answers("DE"))
     with (tmp_path / el.HISTORY_FILE).open("ab") as fh:
         fh.write(b'{"eligible":tr')
     assert eligibility_problem(tmp_path, T0 + 1) == "ELIGIBILITY_BLOCKED"
-    attempt(tmp_path, answers("KR"), t=T0 + 2)
+    attempt(tmp_path, answers("DE"), t=T0 + 2)
     assert eligibility_problem(tmp_path, T0 + 3) is None and len(load_history(tmp_path)) == 3
 
 
@@ -246,14 +266,14 @@ def test_terms_change_forces_reattest(tmp_path, monkeypatch):
 
 
 def test_rules_tightened_after_attestation_refuse(tmp_path, monkeypatch):
-    attempt(tmp_path, answers("KR", here="JP", cits="KR"))
+    attempt(tmp_path, answers("DE", here="JP", cits="DE"))
     monkeypatch.setattr(el, "RESTRICTED_COUNTRIES", frozenset({"US", "JP"}))
     assert problems(load_history(tmp_path), T0 + 1)[:2] == ["RULES_CHANGED_REATTEST", "RESTRICTED_LOCATION:JP"]
 
 
 # ---------------------------------------------------------------- legacy single-record file
 
-def legacy(tmp_path, eligible, country="KR"):
+def legacy(tmp_path, eligible, country="DE"):
     rec = {"eligible": eligible, "reasons": [] if eligible else ["RESTRICTED_LOCATION:US"],
            "terms_source": el.TERMS_SOURCE, "ts_s": int(T0), "residence_country": country,
            "residence_region": "", "citizenships": [country], "is_entity": False, "entity_incorporation": "",
@@ -269,9 +289,9 @@ def test_legacy_pass_must_reattest(tmp_path):
 def test_legacy_block_is_carried_into_history(tmp_path):
     legacy(tmp_path, False, "US")
     assert eligibility_problem(tmp_path, T0 + 1) == "ELIGIBILITY_BLOCKED"
-    ok, reasons, _, _ = attempt(tmp_path, answers("KR"), t=T0 + 5)
+    ok, reasons, _, _ = attempt(tmp_path, answers("DE"), t=T0 + 5)
     assert not ok and reasons[0] == "ELIGIBILITY_COOLDOWN"            # the legacy block starts a cooldown too
-    ok, _, out, _ = attempt(tmp_path, answers("KR"), t=T0 + DAY + 5)
+    ok, _, out, _ = attempt(tmp_path, answers("DE"), t=T0 + DAY + 5)
     hist = load_history(tmp_path)
     assert ok and [h["eligible"] for h in hist] == [False, True, True]
     assert hist[0]["imported_from"] == el.LEGACY_FILE
@@ -279,15 +299,15 @@ def test_legacy_block_is_carried_into_history(tmp_path):
 
 
 def test_load_eligibility_keeps_old_shape(tmp_path):
-    attempt(tmp_path, answers("KR", here="JP", cits="KR"))
+    attempt(tmp_path, answers("DE", here="JP", cits="DE"))
     rec = load_eligibility(tmp_path)
-    assert rec["eligible"] and rec["residence_country"] == "KR"
+    assert rec["eligible"] and rec["residence_country"] == "DE"
     assert set(rec) <= {"eligible", "reasons", "terms_source", "ts_s", "residence_country", "residence_region",
                         "citizenships", "is_entity", "entity_incorporation", "uses_vpn_or_proxy", "accepts_terms"}
     assert load_history(tmp_path)[-1]["current_country"] == "JP"
 
 
 def test_region_country_mismatch_still_blocked_by_check():
-    ok, why = check(Attestation("KR", residence_region="CA-ON", citizenships=("KR",), accepts_terms=True,
-                                current_country="KR"))
+    ok, why = check(Attestation("DE", residence_region="CA-ON", citizenships=("DE",), accepts_terms=True,
+                                current_country="DE"))
     assert not ok and "REGION_COUNTRY_MISMATCH:RESIDENCE:CA-ON" in why

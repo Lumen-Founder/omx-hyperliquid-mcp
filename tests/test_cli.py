@@ -16,7 +16,7 @@ T0 = 1_800_000_000.0
 
 from answer_flow import flow
 
-ELIGIBLE_ANSWERS = ["no", "KR", "yes", "", "no", "yes"]   # entity, residence, here?, citizenship(=KR), vpn, terms
+ELIGIBLE_ANSWERS = ["no", "DE", "yes", "", "no", "yes"]   # entity, residence, here?, citizenship(=DE), vpn, terms
 
 
 class Inputs:
@@ -59,12 +59,35 @@ def test_init_runs_onboarding_and_writes_config(tmp_path):
     assert code == 0, err
     assert p.exists() and "never asks for your MAIN wallet private key" in out
     rec = load_eligibility(tmp_path / "state")
-    assert rec["eligible"] and rec["residence_country"] == "KR"
+    assert rec["eligible"] and rec["residence_country"] == "DE"
     code, _, err = run(["--config", str(p), "init", "--account", ACCOUNT, "--key-path", "x"])
     assert code == 1 and "exists" in err
 
 
-def test_init_default_builder_is_used_only_when_set_and_can_be_declined(tmp_path, monkeypatch):
+def test_init_builder_fee_is_opt_in_errors(tmp_path):
+    base = ["init", "--account", ACCOUNT, "--key-path", "k/agent.key"]
+    code, _, err = run(["--config", str(tmp_path / "a.toml")] + base + ["--network", "mainnet",
+                                                                        "--fee-tenths-bps", "5"])
+    assert code == 1 and "--with-builder" in err and not (tmp_path / "a.toml").exists()
+    code, _, err = run(["--config", str(tmp_path / "b.toml")] + base + ["--network", "testnet", "--with-builder"])
+    assert code == 1 and "no OMX builder on testnet" in err and not (tmp_path / "b.toml").exists()
+
+
+def test_default_mainnet_init_sends_no_builder_and_never_waits_for_approval(tmp_path):
+    """The shipped default (no opt-in): no builder in the config, the engine attaches none and the
+    daemon has nothing to check, so the first order is not refused with BUILDER_NOT_APPROVED."""
+    from omx.config import load
+    from omx.builder import builder_of
+    p = tmp_path / "omx.toml"
+    code, _, err = run(["--config", str(p), "init", "--account", ACCOUNT, "--network", "mainnet",
+                        "--key-path", "k/agent.key"], ELIGIBLE_ANSWERS)
+    assert code == 0, err
+    c = load(p)
+    assert c.builder_address is None and c.builder_fee_tenths_bps == 0
+    assert builder_of(c.builder_address, c.builder_fee_tenths_bps) is None
+
+
+def test_init_builder_fee_is_opt_in(tmp_path, monkeypatch):
     from omx import config as config_mod
     from omx.config import load
     base = ["init", "--account", ACCOUNT, "--network", "mainnet", "--key-path", "k/agent.key"]
@@ -75,18 +98,17 @@ def test_init_default_builder_is_used_only_when_set_and_can_be_declined(tmp_path
         assert code == 0, err
         return load(p)
 
-    monkeypatch.setitem(config_mod.DEFAULT_BUILDER, "mainnet", None)
-    c = cfg_after([], "none.toml")                                   # no default shipped: no builder code
-    assert c.builder_address is None and c.builder_fee_tenths_bps == 0
     monkeypatch.setitem(config_mod.DEFAULT_BUILDER, "mainnet", ACCOUNT)
-    c = cfg_after([], "self.toml")                                   # the builder's own account: no builder code
+    c = cfg_after(["--with-builder"], "self.toml")                   # the builder's own account: no builder code
     assert c.builder_address is None and c.builder_fee_tenths_bps == 0
     monkeypatch.setitem(config_mod.DEFAULT_BUILDER, "mainnet", BUILDER)
-    c = cfg_after([], "default.toml")
+    c = cfg_after([], "default.toml")                                # opt-in: no flag, no builder fee
+    assert c.builder_address is None and c.builder_fee_tenths_bps == 0
+    c = cfg_after(["--with-builder"], "optin.toml")
     assert c.builder_address.lower() == BUILDER.lower() and c.builder_fee_tenths_bps == 10
     c = cfg_after(["--no-builder"], "declined.toml")
     assert c.builder_address is None and c.builder_fee_tenths_bps == 0
-    c = cfg_after(["--fee-tenths-bps", "5"], "lower.toml")
+    c = cfg_after(["--with-builder", "--fee-tenths-bps", "5"], "lower.toml")
     assert c.builder_address.lower() == BUILDER.lower() and c.builder_fee_tenths_bps == 5
     other = "0x" + "12" * 20
     c = cfg_after(["--builder-address", other], "own.toml")           # an explicit builder keeps the old fee default
@@ -109,11 +131,21 @@ def test_init_blocked_resident_writes_nothing(tmp_path):
     assert load_eligibility(tmp_path / "state")["eligible"] is False
 
 
+def test_init_korea_resident_is_blocked_and_writes_nothing(tmp_path):
+    p = tmp_path / "omx.toml"
+    code, out, _ = run(["--config", str(p), "init", "--account", ACCOUNT, "--network", "mainnet",
+                        "--key-env", "OMX_KEY"],
+                       flow(["no", "KR", "", "KR", "", "KR", "no", "yes"]))
+    assert code == 2 and not p.exists()
+    assert "RESTRICTED_LOCATION:KR" in out and "Republic of Korea" in out
+    assert load_eligibility(tmp_path / "state")["eligible"] is False
+
+
 @pytest.mark.parametrize("answers,reason", [
     (flow(["no", "CA", "CA-ON", "CA", "CA-ON", "CA", "no", "yes"]), "RESTRICTED_REGION:CA-ON"),
-    (flow(["no", "KR", "", "KR", "", "KR", "yes", "yes"]), "VPN_OR_PROXY_DECLARED"),
+    (flow(["no", "DE", "", "DE", "", "DE", "yes", "yes"]), "VPN_OR_PROXY_DECLARED"),
     (flow(["no", "DE", "", "DE", "", "DE, IR", "no", "yes"]), "SANCTIONED_CITIZENSHIP:IR"),
-    (flow(["no", "KR", "", "KR", "", "KR", "no", "no"]), "TERMS_NOT_ACCEPTED"),
+    (flow(["no", "DE", "", "DE", "", "DE", "no", "no"]), "TERMS_NOT_ACCEPTED"),
 ])
 def test_eligibility_blocks(cfgfile, answers, reason):
     code, out, _ = run(["--config", str(cfgfile), "eligibility"], answers)

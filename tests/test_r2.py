@@ -31,7 +31,7 @@ from test_daemon import quiet, sim_factory, wait_for
 from test_hyperliquid import NOW, USER, FakeClock, FakeTransport
 from test_mcp import ACCOUNT, FakeEngine, confirming_console, daemon_running, make_eligible
 
-KR = Attestation("KR", citizenships=("KR",), accepts_terms=True, current_country="KR")
+DE = Attestation("DE", citizenships=("DE",), accepts_terms=True, current_country="DE")
 US = Attestation("US", citizenships=("US",), accepts_terms=True, current_country="US")
 CANCEL_OK = {"status": "ok", "response": {"type": "cancel", "data": {"statuses": ["success"]}}}
 
@@ -115,7 +115,7 @@ def hl_kill_factory(open_orders, exchange):
 def test_B1_expired_attestation_kill_without_daemon_cancels(tmp_path):
     p = cfgfile_at(tmp_path)
     cfg = load(p)
-    record_attempt(cfg.state_dir, KR, True, [], now_s=time.time() - 31 * 86_400)     # attested 31 days ago
+    record_attempt(cfg.state_dir, DE, True, [], now_s=time.time() - 31 * 86_400)     # attested 31 days ago
     omx_order = {"coin": "ETH", "side": "B", "sz": "1.0", "limitPx": "1800", "oid": 5,
                  "cloid": cloid_for("hu-old.1"), "reduceOnly": False}
     factory, t = hl_kill_factory([omx_order], [CANCEL_OK])
@@ -145,7 +145,7 @@ def test_B1_cancel_only_engine_refuses_new_orders(tmp_path):
 def test_B1_cancel_only_daemon_starts_without_eligibility_and_sweeps(tmp_path):
     p = cfgfile_at(tmp_path)
     cfg = load(p)
-    record_attempt(cfg.state_dir, KR, True, [], now_s=time.time() - 31 * 86_400)     # expired
+    record_attempt(cfg.state_dir, DE, True, [], now_s=time.time() - 31 * 86_400)     # expired
     sim = SimVenue(SimConfig(seed=1), coins=quiet())
     sim.place(ChildOrder("hu-old.1", "hu-old", "ETH", Side.BUY, 1.0, 2990.0, "Gtc"))
     sim.advance(500)

@@ -322,13 +322,13 @@ class Wizard:
                    .replace("\n", "\n  "))
             self.w()
             return builder, fee
-        d_builder, d_fee = _init_builder(SimpleNamespace(no_builder=False, builder_address=None, fee_tenths_bps=None,
-                                                         network=network, account=account))
+        d_builder, d_fee = _init_builder(SimpleNamespace(no_builder=False, with_builder=True, builder_address=None,
+                                                         fee_tenths_bps=None, network=network, account=account))
         self.w("  " + onboarding.fee_disclosure(self._cfg(account, network, key_path, d_builder, d_fee))
                .replace("\n", "\n  "))
-        self.w(f"  1) OMX builder fee {d_fee / 10:g} bp ({onboarding.max_fee_rate_str(d_fee)}), the `omx init` "
-               "default")
-        self.w("  2) No builder fee (same as `omx init --no-builder`): OMX charges nothing on top of Hyperliquid")
+        self.w(f"  1) OMX builder fee {d_fee / 10:g} bp ({onboarding.max_fee_rate_str(d_fee)}), opt-in (same as "
+               "`omx init --with-builder`)")
+        self.w("  2) No builder fee (the `omx init` default): OMX charges nothing on top of Hyperliquid")
         self.w("  3) A lower OMX builder fee: 0.1 to 0.9 bp")
 
         def choice(v: str) -> str:
@@ -348,8 +348,9 @@ class Wizard:
                     raise ValueError(f"must be 0.1 to {(d_fee - 1) / 10:g} bp in steps of 0.1")
                 return t
             tenths = self.ask("  Builder fee in bp (0.1 to 0.9): ", rate)
-        builder, fee = _init_builder(SimpleNamespace(no_builder=(c == "2"), builder_address=None,
-                                                     fee_tenths_bps=tenths, network=network, account=account))
+        builder, fee = _init_builder(SimpleNamespace(no_builder=(c == "2"), with_builder=(c != "2"),
+                                                     builder_address=None, fee_tenths_bps=tenths,
+                                                     network=network, account=account))
         if c != "1":
             self.w("  " + onboarding.fee_disclosure(self._cfg(account, network, key_path, builder, fee))
                    .replace("\n", "\n  "))

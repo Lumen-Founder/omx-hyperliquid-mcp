@@ -110,7 +110,7 @@ def make_cfg(tmp_path, agent=True, **sub):
 
 
 def make_eligible(state_dir):
-    save_eligibility(state_dir, Attestation("KR", citizenships=("KR",), accepts_terms=True, current_country="KR"),
+    save_eligibility(state_dir, Attestation("DE", citizenships=("DE",), accepts_terms=True, current_country="DE"),
                      True, [])
 
 

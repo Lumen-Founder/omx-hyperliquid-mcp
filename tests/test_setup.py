@@ -20,7 +20,7 @@ from omx.keyfile import KeyFileExists, write_new_key_file
 from omx.onboarding import load_eligibility
 from omx.setup_wizard import run_setup
 
-ELIGIBLE = ["no", "KR", "yes", "", "no", "yes"]   # entity, residence, here?, citizenship(=KR), vpn, terms
+ELIGIBLE = ["no", "DE", "yes", "", "no", "yes"]   # entity, residence, here?, citizenship(=DE), vpn, terms
 
 
 @pytest.fixture(autouse=True)
@@ -221,7 +221,7 @@ def test_stopping_mid_walk_writes_no_key_or_config(tmp_path, stop):
 
 def test_end_of_input_inside_eligibility_writes_nothing(tmp_path):
     _, key_hex = new_key()
-    code, out, *_ = wizard(tmp_path, ["", Account.create().address, "2", "", "no", "KR"], [key_hex])
+    code, out, *_ = wizard(tmp_path, ["", Account.create().address, "2", "", "no", "DE"], [key_hex])
     assert code == 1
     assert not (tmp_path / "secrets").exists() and not (tmp_path / "omx.toml").exists()
     assert load_eligibility(tmp_path / "state") is None

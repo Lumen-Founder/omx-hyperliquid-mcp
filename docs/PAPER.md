@@ -117,6 +117,6 @@ block with `STALE_DATA`.
 
 Start on Hyperliquid testnet: create an API (agent) wallet in your own account,
 run `omx init --account <your address> --key-path <agent key file>
---enable-agent`, `omx approve-builder` (or `--no-builder`), `omx daemon` in its
+--enable-agent` (no builder fee unless you add `--with-builder`), `omx daemon` in its
 own terminal, then `omx-hyperliquid --config omx.toml`. See the README quick
 start.

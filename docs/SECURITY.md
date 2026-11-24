@@ -257,7 +257,8 @@ the external copy of the latest hash described above is what catches that.
 where you are **physically located now**, and, for Canada and Ukraine, the
 province/region for both; a blank region there blocks (Ontario and the
 occupied Ukrainian regions are restricted). It mirrors the Hyperliquid Terms of
-Use, sections 1.6-1.9 and 3.1.5. Using a VPN or proxy, or a false statement, to
+Use, sections 1.6-1.9 and 3.1.5. OMX additionally blocks residence or current
+location in the Republic of Korea. Using a VPN or proxy, or a false statement, to
 get around a block is a breach; OMX offers no way around one.
 
 Every attempt, passing or blocked, is appended as one line to

@@ -62,8 +62,8 @@ DEMO_INSTRUCTIONS = ("OMX DEMO MODE: the real OMX tools on a local simulated ven
                      "trigger the kill switch; you cannot clear it or change limits, fees or keys. "
                      "If the user wants to trade for real, tell them: start on Hyperliquid testnet; create an API "
                      "(agent) wallet in their own account; run `omx init --account <their address> --key-path "
-                     "<agent key file> --enable-agent`, then `omx approve-builder` (optional 1 bp fee, approved "
-                     "in their own wallet; `--no-builder` for none) and `omx daemon` in its own terminal; then "
+                     "<agent key file> --enable-agent` (no builder fee unless they add `--with-builder` and approve "
+                     "it in their own wallet with `omx approve-builder`), then `omx daemon` in its own terminal; then "
                      "start this server as `omx-hyperliquid --config omx.toml`. Setup guide: "
                      "https://github.com/Lumen-Founder/omx-hyperliquid-mcp#quick-start-testnet")
 

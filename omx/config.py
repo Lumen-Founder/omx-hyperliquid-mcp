@@ -28,7 +28,8 @@ NETWORKS = ("mainnet", "testnet")
 MAX_BUILDER_FEE_TENTHS_BPS = 100       # 10 bps = 0.1 %, Hyperliquid's perp builder-fee ceiling
 MAX_ELIGIBILITY_TTL_DAYS = 30           # attestations are renewed at least monthly; shorter is allowed
 FORBIDDEN_NAMES = {"private_key", "secret", "secret_key", "mnemonic", "seed", "seed_phrase", "api_secret", "key"}
-# The OMX maintainers' builder code, used by `omx init` when no --builder-address / --no-builder is given.
+# The OMX maintainers' builder code, used only when the user opts in (`omx init --with-builder`, or choice 1/3
+# in `omx setup`). Without an opt-in no builder code is configured and orders carry no builder field.
 # It only takes effect after the user approves it from their own wallet (`omx approve-builder`); `omx fees`
 # shows it in plain words. None = no default on that network.
 DEFAULT_BUILDER = {"mainnet": "0x34C752D1092faE5C01c5CF00798F16534065E1f1", "testnet": None}

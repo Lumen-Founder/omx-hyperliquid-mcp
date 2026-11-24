@@ -2,7 +2,7 @@
 
 > Non-custodial execution engine for Hyperliquid perpetuals with an MCP server for AI agents. It runs on the user's machine, signs only with a Hyperliquid API wallet that cannot withdraw, checks every child order against a pre-trade policy, sends large intents to a human for approval, returns a verifiable execution receipt per intent, and logs every decision in a hash-chained audit log. `uvx omx-hyperliquid` with no config is a keyless demo on a simulated venue.
 
-PyPI: `omx-hyperliquid`. Official MCP Registry: `io.github.Lumen-Founder/omx-hyperliquid-trading`. License: MIT. Pre-1.0, testnet end-to-end tested, no external security audit. Not available in the United States, Ontario or sanctioned territories. Optional 1 bp builder fee, charged only after the user approves it from their own wallet.
+PyPI: `omx-hyperliquid`. Official MCP Registry: `io.github.Lumen-Founder/omx-hyperliquid-trading`. License: MIT. Pre-1.0, testnet end-to-end tested, no external security audit. Not available in the United States, Ontario, sanctioned territories or the Republic of Korea. Builder fee off by default; an opt-in 1 bp fee (`omx init --with-builder`) is charged only after the user approves it from their own wallet.
 
 ## Docs
 
